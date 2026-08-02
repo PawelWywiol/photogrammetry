@@ -22,6 +22,7 @@ help:
 	@echo "  make <project> check        audit the photos before spending time reconstructing"
 	@echo "  make <project> build        reconstruct only, no STL"
 	@echo "  make <project> stl          re-export the STL only"
+	@echo "  make <project> opt [PRESET] clean up the mesh (print, detail, denoise, light)"
 	@echo "  make <project> view         render preview images of the mesh"
 	@echo "  make <project> video FILE   extract photos from a video file"
 	@echo "  make <project> clean        delete generated files, keep the photos"
@@ -70,6 +71,7 @@ clean-build:
 	  check)     $(PG) check "$(PROJECT)" ;; \
 	  build)     $(PG) build "$(PROJECT)" --detail full ;; \
 	  stl)       $(PG) stl   "$(PROJECT)" ;; \
+	  opt)       $(PG) opt   "$(PROJECT)" $(if $(ARGS),--preset $(ARGS)) ;; \
 	  view)      $(PG) view  "$(PROJECT)" ;; \
 	  video)     test -n "$(ARGS)" || { echo "usage: make $(PROJECT) video path/to/clip.mov"; exit 1; }; \
 	             $(PG) frames "$(PROJECT)" $(ARGS) ;; \

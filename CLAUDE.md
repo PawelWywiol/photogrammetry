@@ -18,6 +18,7 @@ under `projects/`. The deliverable of every project is a print-ready **STL**.
 | Reconstruction | Apple Object Capture (`PhotogrammetrySession`) via our own Swift CLI | `tools/objcap/` |
 | Orchestration | bash driver | `bin/pg` |
 | Mesh → STL | `trimesh` via a self-contained `uv` script | `tools/scripts/mesh2stl.py` |
+| Mesh cleanup | `PyMeshLab` presets | `tools/scripts/meshopt.py` |
 
 Rationale and the rejected alternatives (Meshroom, COLMAP+OpenMVS): `docs/01-tooling-decision.md`.
 The reconstruction engine is Apple's closed framework; everything else here is ours and the
@@ -70,6 +71,9 @@ docs/                 knowledge base — start at docs/INDEX.md
 - **Quality problems are capture problems.** Detail level, sensitivity and polygon budget
   were measured to make almost no difference on a badly captured set. When output is poor,
   run `pg check` and look at the photos before touching settings.
+- **Mesh post-processing cleans, it does not recover.** `pg opt` fixes noise and topology
+  (measured: 0.05 mm mean deviation). It cannot restore detail a moving subject destroyed.
+  Never present it as a fix for a bad capture — see `docs/08-mesh-optimisation.md`.
 - **Anything alive needs video, not stills.** `pg frames`, not a minute-long photo walk.
   See `docs/07-moving-subjects.md`.
 - **Do not guess about APIs or tools.** Verify against the SDK interface files, official

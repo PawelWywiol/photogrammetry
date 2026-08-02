@@ -91,6 +91,18 @@ cmd_stl() {
   uv run --quiet "$ROOT/tools/scripts/mesh2stl.py" "$obj" "$dir/output/$name.stl" "$@"
 }
 
+cmd_opt() {
+  local name="$1"; shift
+  local dir; dir="$(project_dir "$name")"
+  local stl="$dir/output/$name.stl"
+  [ -f "$stl" ] || die "no $stl — run 'pg stl $name' first"
+  # Name the output after the preset so variants sit side by side and can be compared.
+  local preset=print
+  case " $* " in *" --preset "*) preset="$(echo "$*" | sed -n 's/.*--preset \([a-z]*\).*/\1/p')" ;; esac
+  local args=("$@"); [ ${#args[@]} -eq 0 ] && args=(--preset print)
+  uv run --quiet "$ROOT/tools/scripts/meshopt.py" "$stl" "$dir/output/$name-$preset.stl" "${args[@]}"
+}
+
 cmd_all() {
   local name="$1"; shift
   cmd_check "$name"
@@ -104,6 +116,7 @@ case "${1:-}" in
   prep)   shift; cmd_prep "$@" ;;
   build)  shift; cmd_build "$@" ;;
   stl)    shift; cmd_stl "$@" ;;
+  opt)    shift; cmd_opt "$@" ;;
   view)   shift; cmd_view "$@" ;;
   all)    shift; cmd_all "$@" ;;
   *)
@@ -115,6 +128,7 @@ usage: pg <command> <project> [options]
   prep   <project>             build .prepared/ with truthful file extensions
   build  <project> [objcap…]   reconstruct -> projects/<p>/output/model/ (OBJ + USDA + textures)
   stl    <project> [mesh2stl…] convert the OBJ to a print-ready STL
+  opt    <project> [meshopt…]  clean up the STL -> output/<p>-<preset>.stl
   view   <project> [meshview…] render shaded views -> output/<p>-views.png
   all    <project> [objcap…]   check + build + stl
 
@@ -123,6 +137,9 @@ objcap options:   --detail <preview|reduced|medium|full|raw|custom>
                   --order <unordered|sequential>  --sensitivity <normal|high>
                   --no-masking
 mesh2stl options: --scale <factor>  --target-size <mm>  --no-repair  --ascii
+meshopt options:  --preset <print|detail|denoise|light>
+                  --weld <mm>  --smooth <taubin|hc|laplacian>  --sharpen <w>
+                  --remesh <mm>  --decimate <faces>  --poisson <depth>  --close-holes
 frames options:   --count <n>  --candidates-per-frame <n>
 meshview options: --views <az,az,…>  --elevation <deg>  --size <px>
 

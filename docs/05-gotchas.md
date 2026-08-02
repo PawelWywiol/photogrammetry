@@ -4,6 +4,56 @@ Newest first. Append a dated entry whenever you solve something non-obvious.
 
 ---
 
+## 2026-08-02 — Dropping blurry frames made the mesh *worse*, not better
+
+**Expectation:** `pg check` flagged 11 soft frames out of 61. Removing noise from the input
+should improve the reconstruction.
+
+**Result:** it halved it.
+
+| Input | Faces |
+|---|---|
+| all 61 images | 96 286 |
+| 50 images, 11 blurry ones removed | **47 362** |
+
+**Cause:** the 11 flagged frames were a **contiguous block** (`IMG_1436`–`IMG_1447`) — the
+segment where the photographer walked in close. Two things followed. Removing them opened a
+~65° hole in the orbit, and those were also the frames with the **most pixels on the
+subject**, because they were the closest ones.
+
+**Lesson:** with a thin image set, **orbit coverage beats per-frame sharpness**. Delete
+blurry frames only when they are scattered, and only when you have enough images that
+losing them does not open a gap. Check *where* in the sequence the flagged frames sit before
+deleting anything — if they are consecutive, leave them.
+
+`pg check` reports blurry frames by filename precisely so this can be judged rather than
+automated. It deliberately does not delete anything.
+
+---
+
+## 2026-08-02 — Mesh post-processing cannot recover motion-lost detail
+
+Tested on the 97 152-face reconstruction: welding, Taubin/HC smoothing, isotropic
+remeshing, quadric decimation, screened Poisson and geometric unsharp masking
+(`pg opt`, PyMeshLab).
+
+Measured deviation from the original: `print` 0.054 mm mean, `light` 0.051 mm,
+`detail` 0.299 mm, `denoise` 0.305 mm (model is 795 mm tall). Full table in
+[08-mesh-optimisation.md](08-mesh-optimisation.md).
+
+**What that means:** the shape-faithful presets change the surface by ~0.05 mm, i.e. they
+clean up noise and topology and nothing else. The presets that *do* move the surface
+(`detail`, `denoise`) move it by exaggerating or by rebuilding — neither adds real
+information. Post-processing is worth running for printability; it is not a fix for a bad
+capture.
+
+Also checked: **automatically detecting and correcting a subject that shifted between
+frames** (non-rigid structure-from-motion) is an active academic research topic with
+published papers but **no production-ready open-source implementation**. Not an option
+today.
+
+---
+
 ## 2026-08-02 — Blobby, detail-free mesh: it is the capture, not the settings
 
 **Symptom:** a project reconstructed into a recognisable but mushy figure — correct

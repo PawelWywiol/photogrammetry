@@ -105,6 +105,7 @@ to do with it. Leave the action out to run the whole thing.
 | `make my-object check` | Audits the photos and warns about problems. Free, takes seconds |
 | `make my-object build` | Reconstruct only, without exporting an STL |
 | `make my-object stl` | Re-export the STL only, e.g. at a corrected size |
+| `make my-object opt` | Clean up the mesh — merge vertices, remove noise, even out triangles. Presets: `print` (default), `detail`, `denoise`, `light` |
 | `make my-object view` | Renders preview images of the mesh so you can look at it without any 3D software |
 | `make my-object video ~/Movies/clip.mov` | Pulls the sharpest frames out of a video into `images/` |
 | `make my-object clean` | Deletes generated files, keeps your photos |
