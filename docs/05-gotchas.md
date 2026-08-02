@@ -4,6 +4,32 @@ Newest first. Append a dated entry whenever you solve something non-obvious.
 
 ---
 
+## 2026-08-02 — The solver knows which photos are bad; ask it instead of guessing
+
+`PhotogrammetrySession.Request.poses` solves camera alignment and stops — no meshing, no
+texturing. `objcap <dir> out.json` runs it in **42 s** versus ~100 s for a full build, and
+it exposes information no image metric can reach.
+
+On the 61-photo set it revealed:
+
+- **3 photos the solver could not place at all** (`IMG_1429`–`1431`). Perfectly sharp, so
+  every blur metric passed them. They contributed nothing.
+- **The shoot was two orbits, not one**: 14 photos at radius 0.47 and the rest at 1.11 —
+  the photographer walked in for a close lap, then back out. The two 69° "azimuth jumps"
+  in the sequence are the transitions.
+- That close lap is exactly the run of frames a sharpness filter flags as blurry, because
+  hand shake shows more at short range. It is also the frames with the most pixels on the
+  subject.
+
+Rebuilding from the 58 placeable photos gave 97 968 faces, matching the full set — the
+3 rejects really were dead weight, and nothing else was worth pruning.
+
+**Lesson:** camera poses are cheap and decisive. Judge a photo by whether the solver could
+place it and by what its removal does to orbit coverage — not by its blur score.
+Implemented as `pg triage`, see [09-choosing-photos.md](09-choosing-photos.md).
+
+---
+
 ## 2026-08-02 — Dropping blurry frames made the mesh *worse*, not better
 
 **Expectation:** `pg check` flagged 11 soft frames out of 61. Removing noise from the input

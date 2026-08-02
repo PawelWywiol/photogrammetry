@@ -34,8 +34,19 @@ mkdir -p projects/my-object/images
 # 3. export a printable STL  (writes projects/my-object/output/my-object.stl)
 ./bin/pg stl my-object
 
-# or all three at once
+# or the whole thing at once — adds the cleaned-up variants and a render
 ./bin/pg all my-object --detail full
+```
+
+`pg all` produces:
+
+```
+output/my-object.stl            raw reconstruction
+output/my-object-print.stl      cleaned up, shape-faithful
+output/my-object-light.stl      same shape, ~38% fewer faces
+output/my-object-detail.stl     folds and edges enhanced
+output/my-object-views.png      four rendered views
+output/model/                   OBJ + USDA + texture maps
 ```
 
 The first `pg build` compiles the `objcap` Swift binary automatically; later runs reuse it.

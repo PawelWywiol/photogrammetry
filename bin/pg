@@ -91,6 +91,23 @@ cmd_stl() {
   uv run --quiet "$ROOT/tools/scripts/mesh2stl.py" "$obj" "$dir/output/$name.stl" "$@"
 }
 
+# Which photos are hurting the reconstruction? Ask the solver, not a blur metric.
+cmd_triage() {
+  local name="$1"; shift
+  local dir; dir="$(project_dir "$name")"
+  ensure_objcap
+  local poses="$dir/output/poses.json"
+  if [ ! -f "$poses" ]; then
+    cmd_prep "$name"
+    mkdir -p "$dir/output"
+    info "solving camera poses (no meshing — much faster than a full build)"
+    "$OBJCAP" "$dir/.prepared" "$poses" --checkpoint "$dir/.checkpoint" >/dev/null
+  else
+    info "reusing $poses (delete it to re-solve)"
+  fi
+  uv run --quiet "$ROOT/tools/scripts/triage.py" "$poses" "$dir/images" "$@"
+}
+
 cmd_opt() {
   local name="$1"; shift
   local dir; dir="$(project_dir "$name")"
@@ -103,15 +120,23 @@ cmd_opt() {
   uv run --quiet "$ROOT/tools/scripts/meshopt.py" "$stl" "$dir/output/$name-$preset.stl" "${args[@]}"
 }
 
+# The full run ends with everything needed to choose: the raw STL, the three shape-faithful
+# and enhanced variants, and a render to look at without opening any 3D software.
 cmd_all() {
   local name="$1"; shift
   cmd_check "$name"
   cmd_build "$name" "$@"
   cmd_stl "$name"
+  local preset
+  for preset in print light detail; do
+    cmd_opt "$name" --preset "$preset"
+  done
+  cmd_view "$name"
 }
 
 case "${1:-}" in
   check)  shift; cmd_check "$@" ;;
+  triage) shift; cmd_triage "$@" ;;
   frames) shift; cmd_frames "$@" ;;
   prep)   shift; cmd_prep "$@" ;;
   build)  shift; cmd_build "$@" ;;
@@ -125,18 +150,20 @@ usage: pg <command> <project> [options]
 
   frames <project> <video>     extract the sharpest frames from a video into images/
   check  <project>             audit images/: formats, sharpness, shoot duration
+  triage <project> [triage…]   solve camera poses, report which photos hurt the model
   prep   <project>             build .prepared/ with truthful file extensions
   build  <project> [objcap…]   reconstruct -> projects/<p>/output/model/ (OBJ + USDA + textures)
   stl    <project> [mesh2stl…] convert the OBJ to a print-ready STL
   opt    <project> [meshopt…]  clean up the STL -> output/<p>-<preset>.stl
   view   <project> [meshview…] render shaded views -> output/<p>-views.png
-  all    <project> [objcap…]   check + build + stl
+  all    <project> [objcap…]   check + build + stl + opt (print/light/detail) + view
 
 objcap options:   --detail <preview|reduced|medium|full|raw|custom>
                   --polygons <n>  --texture <1k|2k|4k|8k|16k>
                   --order <unordered|sequential>  --sensitivity <normal|high>
                   --no-masking
 mesh2stl options: --scale <factor>  --target-size <mm>  --no-repair  --ascii
+triage options:   --max-gap <deg>  --blur-ratio <f>  --write-subset <dir>  --verbose
 meshopt options:  --preset <print|detail|denoise|light>
                   --weld <mm>  --smooth <taubin|hc|laplacian>  --sharpen <w>
                   --remesh <mm>  --decimate <faces>  --poisson <depth>  --close-holes

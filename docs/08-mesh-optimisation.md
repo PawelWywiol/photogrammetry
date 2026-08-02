@@ -16,6 +16,9 @@ make my-object opt light
 Output is named after the preset, so variants sit side by side and you can compare them
 before deciding what to slice.
 
+A full run (`make my-object`) generates `print`, `light` and `detail` automatically, plus
+`my-object-views.png`. Run `pg opt` by hand only when you want `denoise` or custom flags.
+
 ## What this can and cannot do
 
 **It cannot add detail that the reconstruction never captured.** If the subject moved

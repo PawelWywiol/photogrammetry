@@ -17,9 +17,10 @@ Makefile: ;
 help:
 	@echo "Photogrammetry -> 3D print"
 	@echo ""
-	@echo "  make <project>              full run: check + reconstruct + STL   (best quality)"
+	@echo "  make <project>              full run: check + reconstruct + STL variants + render"
 	@echo "  make <project> preview      fast, rough run to see if the photos are usable"
 	@echo "  make <project> check        audit the photos before spending time reconstructing"
+	@echo "  make <project> triage       find which photos are hurting the model (~40 s)"
 	@echo "  make <project> build        reconstruct only, no STL"
 	@echo "  make <project> stl          re-export the STL only"
 	@echo "  make <project> opt [PRESET] clean up the mesh (print, detail, denoise, light)"
@@ -34,7 +35,12 @@ help:
 	@echo "Example:"
 	@echo "  1. put photos in projects/my-object/images/"
 	@echo "  2. make my-object"
-	@echo "  3. the result is projects/my-object/output/my-object.stl"
+	@echo "  3. results land in projects/my-object/output/ :"
+	@echo "       my-object.stl          raw reconstruction"
+	@echo "       my-object-print.stl    cleaned up, shape-faithful  <- usually this one"
+	@echo "       my-object-light.stl    same shape, 38% fewer faces"
+	@echo "       my-object-detail.stl   folds and edges enhanced"
+	@echo "       my-object-views.png    four rendered views"
 	@echo ""
 	@echo "Scanning a person or a pet? Read docs/07-moving-subjects.md first."
 
@@ -68,7 +74,8 @@ clean-build:
 	case "$(ACTION)" in \
 	  "")        $(PG) all   "$(PROJECT)" --detail full ;; \
 	  preview)   $(PG) build "$(PROJECT)" --detail preview && $(PG) stl "$(PROJECT)" ;; \
-	  check)     $(PG) check "$(PROJECT)" ;; \
+	  check)     $(PG) check  "$(PROJECT)" ;; \
+	  triage)    $(PG) triage "$(PROJECT)" ;; \
 	  build)     $(PG) build "$(PROJECT)" --detail full ;; \
 	  stl)       $(PG) stl   "$(PROJECT)" ;; \
 	  opt)       $(PG) opt   "$(PROJECT)" $(if $(ARGS),--preset $(ARGS)) ;; \

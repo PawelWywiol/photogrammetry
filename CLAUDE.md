@@ -50,7 +50,7 @@ projects/<name>/
   NOTES.md    ← what the object is, how it was shot, its MEASURED real-world size
   .prepared/  ┐
   .checkpoint/├ generated, disposable
-  output/     ┘
+  output/     ┘ <name>.stl + -print/-light/-detail variants + -views.png + model/
 Makefile              user-facing commands
 README.md             install + usage, written for non-programmers
 tools/objcap/         Swift CLI over PhotogrammetrySession
@@ -71,6 +71,9 @@ docs/                 knowledge base — start at docs/INDEX.md
 - **Quality problems are capture problems.** Detail level, sensitivity and polygon budget
   were measured to make almost no difference on a badly captured set. When output is poor,
   run `pg check` and look at the photos before touching settings.
+- **Never delete photos on a blur score alone.** Measured: it halved a reconstruction.
+  Use `pg triage` — it solves camera poses (~40 s) and only condemns a photo that is both
+  weak and redundant. Close-range frames are soft *and* carry the most detail.
 - **Mesh post-processing cleans, it does not recover.** `pg opt` fixes noise and topology
   (measured: 0.05 mm mean deviation). It cannot restore detail a moving subject destroyed.
   Never present it as a fix for a bad capture — see `docs/08-mesh-optimisation.md`.

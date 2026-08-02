@@ -54,10 +54,11 @@ func parseArgs() -> Options {
     // RealityKit decides "single file" vs "OBJ+USDA folder" from URL.hasDirectoryPath,
     // which must be set explicitly — it is not inferred from the filesystem.
     let outputPath = positional[1]
+    let extension_ = (outputPath as NSString).pathExtension.lowercased()
     var options = Options(
         input: URL(fileURLWithPath: positional[0], isDirectory: true),
         output: URL(fileURLWithPath: outputPath,
-                    isDirectory: (outputPath as NSString).pathExtension.lowercased() != "usdz")
+                    isDirectory: !["usdz", "json"].contains(extension_))
     )
 
     for (flag, value) in flags {
@@ -125,8 +126,10 @@ if options.detail == .custom {
     configuration.customDetailSpecification.maximumTextureDimension = options.textureDimension
 }
 
+let isPosesRequest = options.output.pathExtension.lowercased() == "json"
 let isSingleFile = options.output.pathExtension.lowercased() == "usdz"
-let outputParent = isSingleFile ? options.output.deletingLastPathComponent() : options.output
+let outputParent = (isSingleFile || isPosesRequest)
+    ? options.output.deletingLastPathComponent() : options.output
 try? FileManager.default.createDirectory(at: outputParent, withIntermediateDirectories: true)
 
 let session: PhotogrammetrySession
@@ -136,7 +139,11 @@ do {
     fail("cannot open session: \(error.localizedDescription)")
 }
 
-let request = PhotogrammetrySession.Request.modelFile(url: options.output, detail: options.detail)
+// A `poses` request solves camera alignment only — no meshing, no texturing. It is the
+// cheapest way to learn which photos the solver could actually place, and where.
+let request = isPosesRequest
+    ? PhotogrammetrySession.Request.poses
+    : PhotogrammetrySession.Request.modelFile(url: options.output, detail: options.detail)
 log("input: \(options.input.path)")
 log("output: \(options.output.path) (\(isSingleFile ? "usdz" : "obj+usda directory"))")
 log("detail: \(options.detail), ordering: \(options.ordering), sensitivity: \(options.sensitivity), masking: \(options.masking)")
@@ -164,6 +171,23 @@ for try await output in session.outputs {
         log("stage: \(stage)\(eta)")
     case .requestComplete(_, let result):
         if case .modelFile(let url) = result { log("written: \(url.path)") }
+        if case .poses(let poses) = result {
+            let urls = poses.urlsBySample
+            let entries = poses.posesBySample.keys.sorted().map { id -> [String: Any] in
+                let pose = poses.posesBySample[id]!
+                return [
+                    "id": id,
+                    "file": urls[id]?.lastPathComponent ?? "",
+                    "translation": [pose.translation.x, pose.translation.y, pose.translation.z],
+                    "rotation": [pose.rotation.vector.x, pose.rotation.vector.y,
+                                 pose.rotation.vector.z, pose.rotation.vector.w],
+                ]
+            }
+            let data = try JSONSerialization.data(withJSONObject: ["poses": entries],
+                                                  options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: options.output)
+            log("written: \(options.output.path) (\(entries.count) camera poses)")
+        }
     case .requestError(_, let error):
         fail("request failed: \(error.localizedDescription)")
     case .inputComplete:

@@ -82,12 +82,22 @@ make my-object
 This checks the photos, reconstructs the object, and writes the STL. On an M2 with ~60
 photos it takes about two minutes.
 
-**4. Collect the result.**
+**4. Collect the results.**
 
 ```
-projects/my-object/output/my-object.stl      ← open this in your slicer
-projects/my-object/output/model/             ← the coloured/textured version
+projects/my-object/output/
+  my-object-print.stl    cleaned up, shape unchanged   ← usually the one to slice
+  my-object-light.stl    same shape, 38 % fewer faces  ← if the file feels heavy
+  my-object-detail.stl   folds and edges enhanced      ← if the surface looks mushy
+  my-object.stl          the raw reconstruction, untouched
+  my-object-views.png    four rendered views — look at this first
+  model/                 the coloured/textured version
 ```
+
+Open `my-object-views.png` before anything else: it shows you what you got without needing
+any 3D software. The variants differ only in mesh cleanup — see
+[docs/08-mesh-optimisation.md](docs/08-mesh-optimisation.md) for what each does and how far
+each moves the surface.
 
 ---
 
@@ -100,9 +110,10 @@ to do with it. Leave the action out to run the whole thing.
 
 | Command | What it does |
 |---|---|
-| `make my-object` | The full run: check photos → reconstruct → STL. **This is the one you normally want.** |
+| `make my-object` | The full run: check → reconstruct → STL → three cleaned-up variants → rendered views. **This is the one you normally want.** |
 | `make my-object preview` | Fast rough version (~45 s). Use it to check the photos are usable before committing to a full run |
 | `make my-object check` | Audits the photos and warns about problems. Free, takes seconds |
+| `make my-object triage` | Solves the camera positions (~40 s) and tells you which photos the solver could not use, and which are safe to delete |
 | `make my-object build` | Reconstruct only, without exporting an STL |
 | `make my-object stl` | Re-export the STL only, e.g. at a corrected size |
 | `make my-object opt` | Clean up the mesh — merge vertices, remove noise, even out triangles. Presets: `print` (default), `detail`, `denoise`, `light` |
@@ -208,7 +219,9 @@ and act on what it tells you. The usual causes, in order:
 2. **Too few photos**, or gaps in coverage. → aim for 100+, three laps at different heights.
 3. **The subject is too small in the frame.** → get closer; it should fill 70–80 % of the
    frame height.
-4. **Blurry photos.** → `make my-object check` lists them; delete them.
+4. **Blurry photos.** → `make my-object triage` decides whether deleting them actually
+   helps. Do not delete blurry frames on sight — if they are consecutive, or were shot from
+   close up, removing them makes the model *worse*.
 5. **Shiny, transparent or plain untextured surfaces.** → dust with matte/chalk spray.
 
 Full troubleshooting log: [docs/05-gotchas.md](docs/05-gotchas.md).

@@ -15,6 +15,7 @@ New here? Start with the [README](../README.md) — installation and first model
 | [06-reference.md](06-reference.md) | CLI reference for `pg`, `objcap`, `mesh2stl.py`, `frames.py`, `imgcheck.py`, `meshview.py`, plus verified PhotogrammetrySession API facts and limits |
 | [07-moving-subjects.md](07-moving-subjects.md) | **Scanning people, children and pets.** Why still photos fail on live subjects and how to shoot video instead. Read this before scanning anything that breathes |
 | [08-mesh-optimisation.md](08-mesh-optimisation.md) | `pg opt` — welding vertices, denoising, remeshing, decimation, sharpening. Presets, measured fidelity, and what post-processing can and cannot fix |
+| [09-choosing-photos.md](09-choosing-photos.md) | `pg triage` — using the solver's camera poses to find which photos are unplaceable, redundant or load-bearing. Why deleting blurry frames usually backfires |
 
 ## Conventions
 
