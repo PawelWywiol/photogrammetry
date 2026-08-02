@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# pg — photogrammetry pipeline driver. See docs/INDEX.md
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+OBJCAP="$ROOT/tools/objcap/.build/release/objcap"
+
+die() { echo "error: $*" >&2; exit 1; }
+info() { echo "[pg] $*"; }
+
+project_dir() {
+  local dir="$ROOT/projects/$1"
+  [ -d "$dir" ] || die "no such project: $1 (expected $dir)"
+  [ -d "$dir/images" ] || die "missing $dir/images"
+  echo "$dir"
+}
+
+# True container type, ignoring the filename extension.
+true_ext() {
+  case "$(file -b --mime-type "$1")" in
+    image/jpeg) echo jpg ;;
+    image/heic|image/heif) echo heic ;;
+    image/png) echo png ;;
+    *) echo "" ;;
+  esac
+}
+
+ensure_objcap() {
+  if [ ! -x "$OBJCAP" ]; then
+    info "building objcap..."
+    (cd "$ROOT/tools/objcap" && swift build -c release)
+  fi
+}
+
+cmd_check() {
+  local dir; dir="$(project_dir "$1")"
+  uv run --quiet "$ROOT/tools/scripts/imgcheck.py" "$dir/images"
+}
+
+cmd_frames() {
+  local name="$1" video="$2"; shift 2
+  local dir="$ROOT/projects/$name"
+  mkdir -p "$dir"
+  [ -f "$video" ] || die "no such video: $video"
+  uv run --quiet "$ROOT/tools/scripts/frames.py" "$video" "$dir/images" "$@"
+}
+
+cmd_view() {
+  local name="$1"; shift
+  local dir; dir="$(project_dir "$name")"
+  local mesh; mesh="$(find "$dir/output/model" -maxdepth 2 -name '*.obj' 2>/dev/null | head -1)"
+  [ -n "$mesh" ] || mesh="$dir/output/$name.stl"
+  [ -f "$mesh" ] || die "nothing to view — run 'pg build $name' first"
+  uv run --quiet "$ROOT/tools/scripts/meshview.py" "$mesh" "$dir/output/$name-views.png" "$@"
+}
+
+# Object Capture dispatches on the filename extension, not the file's magic bytes.
+# Build a symlink farm with truthful extensions so mislabelled iPhone exports work.
+cmd_prep() {
+  local dir; dir="$(project_dir "$1")"
+  local prepared="$dir/.prepared"
+  rm -rf "$prepared"; mkdir -p "$prepared"
+  local n=0
+  for f in "$dir"/images/*; do
+    [ -f "$f" ] || continue
+    local actual; actual="$(true_ext "$f")"
+    [ -n "$actual" ] || continue
+    ln -s "$f" "$prepared/$(basename "${f%.*}").$actual"
+    n=$((n + 1))
+  done
+  [ "$n" -gt 0 ] || die "no usable images found in $dir/images"
+  info "prepared $n images in $prepared"
+}
+
+cmd_build() {
+  local name="$1"; shift
+  local dir; dir="$(project_dir "$name")"
+  ensure_objcap
+  cmd_prep "$name"
+  local out="$dir/output/model"
+  rm -rf "$out"; mkdir -p "$dir/output"
+  info "reconstructing -> $out"
+  "$OBJCAP" "$dir/.prepared" "$out" --checkpoint "$dir/.checkpoint" "$@"
+}
+
+cmd_stl() {
+  local name="$1"; shift
+  local dir; dir="$(project_dir "$name")"
+  local obj; obj="$(find "$dir/output/model" -maxdepth 2 -name '*.obj' 2>/dev/null | head -1)"
+  [ -n "$obj" ] || die "no .obj under $dir/output/model — run 'pg build $name' first"
+  uv run --quiet "$ROOT/tools/scripts/mesh2stl.py" "$obj" "$dir/output/$name.stl" "$@"
+}
+
+cmd_all() {
+  local name="$1"; shift
+  cmd_check "$name"
+  cmd_build "$name" "$@"
+  cmd_stl "$name"
+}
+
+case "${1:-}" in
+  check)  shift; cmd_check "$@" ;;
+  frames) shift; cmd_frames "$@" ;;
+  prep)   shift; cmd_prep "$@" ;;
+  build)  shift; cmd_build "$@" ;;
+  stl)    shift; cmd_stl "$@" ;;
+  view)   shift; cmd_view "$@" ;;
+  all)    shift; cmd_all "$@" ;;
+  *)
+    cat <<'EOF'
+usage: pg <command> <project> [options]
+
+  frames <project> <video>     extract the sharpest frames from a video into images/
+  check  <project>             audit images/: formats, sharpness, shoot duration
+  prep   <project>             build .prepared/ with truthful file extensions
+  build  <project> [objcap…]   reconstruct -> projects/<p>/output/model/ (OBJ + USDA + textures)
+  stl    <project> [mesh2stl…] convert the OBJ to a print-ready STL
+  view   <project> [meshview…] render shaded views -> output/<p>-views.png
+  all    <project> [objcap…]   check + build + stl
+
+objcap options:   --detail <preview|reduced|medium|full|raw|custom>
+                  --polygons <n>  --texture <1k|2k|4k|8k|16k>
+                  --order <unordered|sequential>  --sensitivity <normal|high>
+                  --no-masking
+mesh2stl options: --scale <factor>  --target-size <mm>  --no-repair  --ascii
+frames options:   --count <n>  --candidates-per-frame <n>
+meshview options: --views <az,az,…>  --elevation <deg>  --size <px>
+
+Moving subject (child, pet)? Shoot a 20 s video and use 'pg frames' — see
+docs/07-moving-subjects.md.
+
+example: pg all my-object --detail full
+
+For everyday use prefer the Makefile: `make my-object`, `make my-object preview`.
+EOF
+    exit 1 ;;
+esac

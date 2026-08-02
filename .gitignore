@@ -1,0 +1,13 @@
+# PRIVATE DATA — never commit anything from projects/.
+# Photos carry EXIF GPS coordinates, timestamps and device identifiers.
+# Reconstructions can depict people. This repository is public: only the
+# scripts and the documentation are shared.
+projects/*
+!projects/.gitkeep
+!projects/README.md
+
+# build artefacts
+tools/objcap/.build/
+
+# macOS
+.DS_Store
