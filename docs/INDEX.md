@@ -15,12 +15,13 @@ New here? Start with the [README](../README.md) — installation and first model
 | [06-reference.md](06-reference.md) | CLI reference for `pg`, `objcap`, `mesh2stl.py`, `frames.py`, `imgcheck.py`, `meshview.py`, plus verified PhotogrammetrySession API facts and limits |
 | [07-moving-subjects.md](07-moving-subjects.md) | **Scanning people, children and pets.** Why still photos fail on live subjects and how to shoot video instead. Read this before scanning anything that breathes |
 | [08-mesh-optimisation.md](08-mesh-optimisation.md) | `pg opt` — welding vertices, denoising, remeshing, decimation, sharpening. Presets, measured fidelity, and what post-processing can and cannot fix |
-| [09-choosing-photos.md](09-choosing-photos.md) | `pg triage` — using the solver's camera poses to find which photos are unplaceable, redundant or load-bearing. Why deleting blurry frames usually backfires |
+| [09-choosing-photos.md](09-choosing-photos.md) | `pg triage` — using the solver's camera poses to find which photos are unplaceable, redundant or load-bearing. `--drop` parks them as `*.bak`. Why deleting blurry frames usually backfires |
 
 ## Conventions
 
 - One folder per model under `projects/<name>/`.
-- `projects/<name>/images/` is the **only** hand-managed folder. Never edit it from a script.
+- `projects/<name>/images/` is the **only** hand-managed folder. No script deletes or
+  rewrites anything in it; `pg triage --drop` only renames condemned photos to `*.bak`.
 - Everything else under `projects/<name>/` is derived and safe to delete: `.prepared/`,
   `.checkpoint/`, `output/`.
 - Add a `projects/<name>/NOTES.md` with what the object is, how it was shot, and its

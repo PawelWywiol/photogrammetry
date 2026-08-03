@@ -114,6 +114,7 @@ to do with it. Leave the action out to run the whole thing.
 | `make my-object preview` | Fast rough version (~45 s). Use it to check the photos are usable before committing to a full run |
 | `make my-object check` | Audits the photos and warns about problems. Free, takes seconds |
 | `make my-object triage` | Solves the camera positions (~40 s) and tells you which photos the solver could not use, and which are safe to delete |
+| `make my-object triage drop` | The same, then renames those photos to `*.bak` so every later step ignores them. Nothing is deleted — rename them back to undo |
 | `make my-object build` | Reconstruct only, without exporting an STL |
 | `make my-object stl` | Re-export the STL only, e.g. at a corrected size |
 | `make my-object opt` | Clean up the mesh — merge vertices, remove noise, even out triangles. Presets: `print` (default), `detail`, `denoise`, `light` |

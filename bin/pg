@@ -63,6 +63,8 @@ cmd_prep() {
   local n=0
   for f in "$dir"/images/*; do
     [ -f "$f" ] || continue
+    # *.bak was condemned by 'pg triage --drop'; still an image, deliberately not used.
+    case "$f" in *.bak) continue ;; esac
     local actual; actual="$(true_ext "$f")"
     [ -n "$actual" ] || continue
     ln -s "$f" "$prepared/$(basename "${f%.*}").$actual"
@@ -106,6 +108,12 @@ cmd_triage() {
     info "reusing $poses (delete it to re-solve)"
   fi
   uv run --quiet "$ROOT/tools/scripts/triage.py" "$poses" "$dir/images" "$@"
+  # Dropping photos invalidates both the solve and the cached alignment behind it.
+  case " $* " in
+    *" --drop "*)
+      rm -rf "$poses" "$dir/.checkpoint"
+      info "cleared poses.json and .checkpoint — the next build re-solves without the dropped photos" ;;
+  esac
 }
 
 cmd_opt() {
@@ -163,7 +171,8 @@ objcap options:   --detail <preview|reduced|medium|full|raw|custom>
                   --order <unordered|sequential>  --sensitivity <normal|high>
                   --no-masking
 mesh2stl options: --scale <factor>  --target-size <mm>  --no-repair  --ascii
-triage options:   --max-gap <deg>  --blur-ratio <f>  --write-subset <dir>  --verbose
+triage options:   --drop  --max-gap <deg>  --blur-ratio <f>  --write-subset <dir>  --verbose
+                  --drop renames the condemned photos to *.bak; every step then skips them
 meshopt options:  --preset <print|detail|denoise|light>
                   --weld <mm>  --smooth <taubin|hc|laplacian>  --sharpen <w>
                   --remesh <mm>  --decimate <faces>  --poisson <depth>  --close-holes

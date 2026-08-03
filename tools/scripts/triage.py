@@ -56,14 +56,32 @@ def gaps_around(azimuths: np.ndarray) -> np.ndarray:
     return result
 
 
-def merged_gap_without(azimuths: np.ndarray, index: int) -> float:
-    """Gap left behind if this one frame goes: its own forward gap plus its predecessor's.
-    Only the local hole matters — a wide gap elsewhere on the orbit is not this frame's fault."""
-    order = np.argsort(azimuths)
-    position = int(np.where(order == index)[0][0])
-    forward = gaps_around(azimuths)
-    previous = order[position - 1]
-    return float(forward[previous] + forward[index])
+def gap_if_removed(azimuths: np.ndarray, survivors: list[int], index: int) -> float:
+    """Hole this frame would leave in the orbit as it currently stands: the span between the
+    neighbours it sits between. Only the local hole matters — a wide gap elsewhere on the
+    orbit is not this frame's fault."""
+    order = sorted(survivors, key=lambda j: azimuths[j])
+    position = order.index(index)
+    before = azimuths[order[position - 1]]
+    after = azimuths[order[(position + 1) % len(order)]]
+    return float((after - before) % 360.0) or 360.0
+
+
+def prune(azimuths: np.ndarray, candidates: list[int], max_gap: float) -> tuple[list[int], dict]:
+    """Judge each removal against the orbit *as the previous removals left it*.
+
+    Every frame in a consecutive weak run passes the per-frame test on its own and the run
+    still tears a hole: 13 such frames, each "leaving only a 6deg gap", turned a 360deg orbit
+    into 347deg here. Softest first, so the worst frames get first claim on the slack.
+    """
+    survivors = list(range(len(azimuths)))
+    gaps, dropped = {}, []
+    for i in candidates:
+        gaps[i] = gap_if_removed(azimuths, survivors, i)
+        if gaps[i] <= max_gap and len(survivors) > 3:
+            survivors.remove(i)
+            dropped.append(i)
+    return dropped, gaps
 
 
 def main() -> int:
@@ -77,6 +95,8 @@ def main() -> int:
                         help="a frame counts as soft below this fraction of the median sharpness")
     parser.add_argument("--write-subset", metavar="DIR",
                         help="write a symlink farm of the keepers, ready for objcap")
+    parser.add_argument("--drop", action="store_true",
+                        help="rename the condemned photos to *.bak; every other step skips those")
     parser.add_argument("--verbose", action="store_true", help="print every frame, not just flagged ones")
     args = parser.parse_args()
 
@@ -86,7 +106,7 @@ def main() -> int:
         return 1
 
     images = {p.name: p for p in Path(args.images_dir).iterdir()
-              if p.is_file() and not p.name.startswith(".")}
+              if p.is_file() and not p.name.startswith(".") and p.suffix != ".bak"}
     # objcap sees the .prepared symlinks, whose extensions may differ from the originals.
     by_stem = {Path(name).stem: path for name, path in images.items()}
 
@@ -133,22 +153,20 @@ def main() -> int:
     # reconstruction here (docs/05-gotchas.md), so softness alone never condemns them.
     soft = soft & ~near
 
+    reasons_by_frame = {i: [name for name, flag in (("soft", soft[i]), ("distant", far[i])) if flag]
+                        for i in range(len(stems))}
+    candidates = sorted((i for i, r in reasons_by_frame.items() if r), key=lambda i: sharp[i])
+    # Redundant only if the orbit survives losing it — and losing everything dropped before it.
+    droppable, gaps = prune(azimuth, candidates, args.max_gap)
+
     print(f"\n{'photo':<16}{'azim':>7}{'gap':>7}{'dist':>7}{'sharp':>8}  verdict")
-    droppable: list[int] = []
     for i in np.argsort(azimuth):
-        reasons = []
-        if soft[i]:
-            reasons.append("soft")
-        if far[i]:
-            reasons.append("distant")
-        # Redundant only if the orbit survives losing it.
-        merged = merged_gap_without(azimuth, i)
+        reasons = reasons_by_frame[i]
         verdict = ""
-        if reasons and merged <= args.max_gap:
-            verdict = f"DROP ({'+'.join(reasons)}, leaves only a {merged:.0f}deg gap)"
-            droppable.append(i)
+        if i in droppable:
+            verdict = f"DROP ({'+'.join(reasons)}, leaves only a {gaps[i]:.0f}deg gap)"
         elif reasons:
-            verdict = f"keep ({'+'.join(reasons)}, but removing it opens a {merged:.0f}deg gap)"
+            verdict = f"keep ({'+'.join(reasons)}, but removing it opens a {gaps[i]:.0f}deg gap)"
         if verdict or args.verbose:
             print(f"{stems[i]:<16}{azimuth[i]:>7.1f}{gap[i]:>7.1f}{radius[i]:>7.2f}"
                   f"{sharp[i]:>8.0f}  {verdict}")
@@ -174,6 +192,17 @@ def main() -> int:
             source = by_stem[stems[i]].resolve()
             (out / f"{stems[i]}.jpg").symlink_to(source)
         print(f"\nwrote {len(keep)} keepers to {out}")
+
+    # Renaming, never deleting: a photo cannot be re-taken, and a wrong call must be a
+    # one-line undo. Everything that reads images/ ignores *.bak.
+    if args.drop:
+        condemned = sorted(set(unregistered) | {stems[i] for i in droppable})
+        for stem in condemned:
+            path = by_stem[stem]
+            path.rename(path.with_name(path.name + ".bak"))
+        print(f"\ndropped {len(condemned)} photos -> *.bak, the rest is untouched")
+        if condemned:
+            print(f"undo: for f in {args.images_dir}/*.bak; do mv \"$f\" \"${{f%.bak}}\"; done")
     return 0
 
 

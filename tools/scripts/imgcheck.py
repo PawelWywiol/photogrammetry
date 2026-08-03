@@ -62,7 +62,7 @@ def main() -> int:
     args = parser.parse_args()
 
     paths = sorted(p for p in Path(args.images_dir).iterdir()
-                   if p.is_file() and not p.name.startswith("."))
+                   if p.is_file() and not p.name.startswith(".") and p.suffix != ".bak")
     if not paths:
         print(f"error: no files in {args.images_dir}", file=sys.stderr)
         return 1

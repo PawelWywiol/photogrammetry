@@ -63,8 +63,10 @@ docs/                 knowledge base — start at docs/INDEX.md
 
 ## Rules
 
-- **Never modify `projects/*/images/`.** Extension fixes go into the generated
-  `.prepared/` symlink folder, never in place.
+- **Never delete or rewrite anything in `projects/*/images/`.** Extension fixes go into the
+  generated `.prepared/` symlink folder, never in place. The one in-place change allowed is
+  `pg triage --drop`, which *renames* condemned photos to `*.bak` — reversible, and every
+  step skips `*.bak`.
 - **Always verify scale against a real measurement.** Object Capture's metric estimate is
   unreliable for plain Camera-app photos. `mesh2stl.py --target-size <mm>` corrects it.
   Record the measurement in the project's `NOTES.md`.
@@ -74,6 +76,7 @@ docs/                 knowledge base — start at docs/INDEX.md
 - **Never delete photos on a blur score alone.** Measured: it halved a reconstruction.
   Use `pg triage` — it solves camera poses (~40 s) and only condemns a photo that is both
   weak and redundant. Close-range frames are soft *and* carry the most detail.
+  `pg triage --drop` parks exactly those condemned frames as `*.bak`; it never deletes.
 - **Mesh post-processing cleans, it does not recover.** `pg opt` fixes noise and topology
   (measured: 0.05 mm mean deviation). It cannot restore detail a moving subject destroyed.
   Never present it as a fix for a bad capture — see `docs/08-mesh-optimisation.md`.

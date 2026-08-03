@@ -1,7 +1,8 @@
 # Which photos to keep, and which to drop
 
 ```bash
-make my-object triage          # ~40 s, no meshing
+make my-object triage          # ~40 s, no meshing — report only
+make my-object triage drop     # same, then park the condemned photos as *.bak
 ./bin/pg triage my-object --max-gap 12 --write-subset /tmp/keepers
 ```
 
@@ -83,6 +84,45 @@ NOTE:        14 photos were taken much closer than the rest (0.47 vs 1.11).
 | `NOTE` about closer photos | Those are your best data. Do not prune them |
 
 The per-photo table then lists only flagged frames, with `DROP` or `keep` and the reason.
+
+## Acting on it — `--drop`
+
+`triage` reports by default and changes nothing. Add `--drop` (or `make <project> triage
+drop`) to act on the report:
+
+- every `NOT PLACED` and every `DROP` photo is **renamed** to `<name>.<ext>.bak` in place;
+- `check`, `prep`, `build` and `triage` all skip `*.bak`, so the photo stays out of the
+  reconstruction without leaving your machine;
+- `output/poses.json` and `.checkpoint/` are removed, because both describe a photo set that
+  no longer exists — the next build re-solves from scratch;
+- nothing is ever deleted. Undo the whole thing with:
+
+```bash
+for f in projects/my-object/images/*.bak; do mv "$f" "${f%.bak}"; done
+```
+
+Run it without `--drop` first and read the table. `--drop` acts on exactly the frames the
+report just condemned, and on nothing else.
+
+**Run it once.** "Soft" means *below half the median sharpness of the surviving photos*, so
+every pass grows a fresh tail of new offenders out of frames that were perfectly acceptable
+before. One pass removes the genuinely weak frames; repeating it just eats the shoot.
+
+### Removals are judged in sequence, not one at a time
+
+Each candidate is measured against the orbit **as the previously accepted removals left it**,
+softest frame first. This matters more than it sounds:
+
+| | Largest gap | Coverage |
+|---|---|---|
+| 150 photos, before | 7.4° | ~360° |
+| 13 dropped, each judged independently | **27.8°** | ~347° |
+| 11 dropped, judged in sequence | 13.3° | ~360° |
+
+Frames 0081–0094 were a consecutive run of soft frames. Judged individually every one of
+them "leaves only a 6° gap" — and removing the lot tore a 27.8° hole anyway. The sequential
+pass keeps 0084 and 0089 as anchors inside the run and stays inside the 15° budget. Measured
+on a real 150-frame shoot.
 
 ## What it found on a real 61-photo shoot
 

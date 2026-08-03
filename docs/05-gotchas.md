@@ -204,3 +204,23 @@ and OpenMVS is not in Homebrew and must be built from source.
 answers "is this a real object or garbage?" without a display.
 
 For a proper look, open `output/model/*.usda` or a `.usdz` in Preview.app.
+
+---
+
+## 2026-08-02 — Automated photo dropping must judge removals in sequence
+
+`pg triage --drop` originally applied the same per-frame test the report used: "would
+removing *this* photo open a gap wider than `--max-gap`?" On a 150-frame shoot that
+condemned 13 consecutive soft frames (0081–0094), each honestly reporting "leaves only a
+6deg gap". Applied together they tore a **27.8deg hole** — orbit coverage 360deg → 347deg.
+
+**Cause:** each frame's gap was measured against the *original* orbit. In a consecutive run
+of weak frames, every one of them looks individually redundant because its neighbours are
+still there — until they are not.
+
+**Fix:** `prune()` in `triage.py` walks the candidates softest-first and measures each
+against the orbit **as the previous removals left it**. On the same shoot it drops 11 and
+keeps 0084 and 0089 as anchors inside the run: largest gap 13.3deg, coverage still ~360deg.
+
+Second lesson from the same run: "soft" is relative to the *surviving* median, so a second
+`--drop` pass always finds a fresh tail. Run it once.

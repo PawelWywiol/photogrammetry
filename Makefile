@@ -21,6 +21,7 @@ help:
 	@echo "  make <project> preview      fast, rough run to see if the photos are usable"
 	@echo "  make <project> check        audit the photos before spending time reconstructing"
 	@echo "  make <project> triage       find which photos are hurting the model (~40 s)"
+	@echo "  make <project> triage drop  same, then park the condemned photos as *.bak"
 	@echo "  make <project> build        reconstruct only, no STL"
 	@echo "  make <project> stl          re-export the STL only"
 	@echo "  make <project> opt [PRESET] clean up the mesh (print, detail, denoise, light)"
@@ -75,7 +76,7 @@ clean-build:
 	  "")        $(PG) all   "$(PROJECT)" --detail full ;; \
 	  preview)   $(PG) build "$(PROJECT)" --detail preview && $(PG) stl "$(PROJECT)" ;; \
 	  check)     $(PG) check  "$(PROJECT)" ;; \
-	  triage)    $(PG) triage "$(PROJECT)" ;; \
+	  triage)    $(PG) triage "$(PROJECT)" $(if $(filter drop,$(ARGS)),--drop) ;; \
 	  build)     $(PG) build "$(PROJECT)" --detail full ;; \
 	  stl)       $(PG) stl   "$(PROJECT)" ;; \
 	  opt)       $(PG) opt   "$(PROJECT)" $(if $(ARGS),--preset $(ARGS)) ;; \
